@@ -104,19 +104,24 @@ $notionHeaders = @{
     "Notion-Version" = "2022-06-28"
 }
 
-# ---- 1. 연결된 모든 페이지/DB 목록 (100개 넘으면 다음 페이지까지) ----
-$allObjects = @()
+# ---- 1. 확인 대상 목록 ----
+# DB(새 글 감지용)는 개수가 적으니 전부, 페이지(새 댓글 감지용)는 최근 편집순 100개만.
+# 페이지를 전부 돌면 수천 개라 실행 시간이 10분을 넘긴다.
+$databases = @()
 $cursor = $null
 do {
-    $body = @{ page_size = 100 }
+    $body = @{ page_size = 100; filter = @{ property = "object"; value = "database" } }
     if ($cursor) { $body.start_cursor = $cursor }
     $r = Invoke-JsonPost -Uri "https://api.notion.com/v1/search" -Headers $notionHeaders -BodyObj $body
-    $allObjects += $r.results
+    $databases += $r.results
     $cursor = if ($r.has_more) { $r.next_cursor } else { $null }
 } while ($cursor)
 
-$databases = $allObjects | Where-Object { $_.object -eq "database" }
-$pages     = $allObjects | Where-Object { $_.object -eq "page" }
+$pages = (Invoke-JsonPost -Uri "https://api.notion.com/v1/search" -Headers $notionHeaders -BodyObj @{
+    page_size = 100
+    filter    = @{ property = "object"; value = "page" }
+    sort      = @{ direction = "descending"; timestamp = "last_edited_time" }
+}).results
 
 $dbTitleMap = @{}
 foreach ($db in $databases) {
