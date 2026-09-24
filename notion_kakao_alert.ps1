@@ -17,6 +17,22 @@ if (-not $NotionToken -or -not $KakaoAppKey -or $ConversationIds.Count -eq 0) {
     exit 1
 }
 
+# 카카오워크 키가 유효한지 먼저 확인 (새 글이 없으면 발송을 안 하니 키 오류를 모르고 지나칠 수 있음)
+try {
+    $kw = Invoke-RestMethod -Uri "https://api.kakaowork.com/v1/users.list?limit=1" -Headers @{ Authorization = "Bearer $KakaoAppKey" } -Method Get
+    if ($kw.success -eq $false) {
+        Write-Host "::error::카카오워크 키 확인 실패: $($kw.error.code) $($kw.error.message)"
+        exit 1
+    }
+} catch {
+    $status = $_.Exception.Response.StatusCode.value__
+    if ($status -in 401, 403) {
+        Write-Host "::error::카카오워크 앱키가 올바르지 않습니다 (HTTP $status)."
+        exit 1
+    }
+    Write-Host "::warning::카카오워크 키 확인 중 오류 (계속 진행): $($_.Exception.Message)"
+}
+
 $StateDir  = Join-Path $PSScriptRoot "state"
 $StateFile = Join-Path $StateDir "last_check.txt"
 $SeedFile  = Join-Path $PSScriptRoot "seed_last_check.txt"
