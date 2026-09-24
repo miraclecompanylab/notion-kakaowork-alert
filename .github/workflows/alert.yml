@@ -1,0 +1,54 @@
+name: Notion → 카카오워크 알림
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # 5분마다 (GitHub 사정에 따라 몇 분씩 밀릴 수 있음)
+  workflow_dispatch: # Actions 탭에서 수동 실행 버튼
+
+# 이전 실행이 안 끝났으면 기다렸다가 실행 (알림 중복 방지)
+concurrency:
+  group: notion-kakao-alert
+  cancel-in-progress: false
+
+permissions:
+  contents: write # 월 1회 keepalive 커밋용
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # 마지막 확인 시각을 이전 실행에서 이어받기
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: alert-state-${{ github.run_id }}
+          restore-keys: alert-state-
+
+      - name: Run alert script
+        shell: pwsh
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          KAKAOWORK_APP_KEY: ${{ secrets.KAKAOWORK_APP_KEY }}
+          KAKAOWORK_CONVERSATION_IDS: ${{ secrets.KAKAOWORK_CONVERSATION_IDS }}
+        run: ./notion_kakao_alert.ps1
+
+      - name: Save state
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: alert-state-${{ github.run_id }}
+
+      # 공개 저장소는 60일간 활동이 없으면 예약 실행이 자동 중지되므로 매달 1일 빈 커밋 1개
+      - name: Keepalive
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "$(date -u +%d)" = "01" ] && [ "$(date -u +%H)" = "00" ] && [ "$(date -u +%M)" -lt 10 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "keepalive"
+            git push
+          fi
