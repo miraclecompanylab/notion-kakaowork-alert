@@ -1,0 +1,24 @@
+name: 대시보드 진행 여부 자동 이동
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # 5분마다 (GitHub 사정에 따라 몇 분씩 밀릴 수 있음)
+  workflow_dispatch: # Actions 탭에서 수동 실행 버튼
+
+concurrency:
+  group: status-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Sync 진행 여부
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: node crm/status_sync.mjs
