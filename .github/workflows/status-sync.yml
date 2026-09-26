@@ -22,3 +22,7 @@ jobs:
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: node crm/status_sync.mjs
+      - name: Sync 고객 현황판
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: node crm/board_sync.mjs
