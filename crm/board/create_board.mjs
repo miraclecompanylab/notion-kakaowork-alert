@@ -46,7 +46,19 @@ async function build(companyPageId, display, rows, onPage) {
   await api("views", "POST", { database_id: db.id, data_source_id: dsId, name: "카드 보기", type: "gallery", configuration: { type: "gallery", properties: ["상품", "기관", "시도 이력", "진행 단계", "예정 시기", "승인 금액", "비고"].map((n) => ({ property_id: P[n].id, visible: true })).concat([{ property_id: P["최종 업데이트"].id, visible: false }]) } }, "2026-03-11");
   for (const v of defaults) await api(`views/${v.id}`, "DELETE", null, "2026-03-11");
   for (const r of rows) await addRow(db.id, r);
+  await linkUnderIdToggle(companyPageId, page.id);
   return { pageId: page.id, dbId: db.id };
+}
+// 현황판(하위 페이지)은 업체 페이지 맨 아래에 붙으므로, '🔐 기관 ID/PW' 토글 바로 아래에 바로가기 링크를 하나 둔다.
+// 템플릿이 넣어 둔 "📊 정책자금 진행 현황판 —" 안내 줄이 있으면 그 줄을 링크로 바꾼다.
+export async function linkUnderIdToggle(companyPageId, boardId) {
+  const kids = (await api(`blocks/${companyPageId}/children?page_size=20`)).results;
+  const text = (b) => (b[b.type]?.rich_text ?? []).map((t) => t.plain_text).join("");
+  const i = kids.findIndex((b) => b.type === "toggle" && text(b).includes("기관 ID/PW"));
+  if (i < 0) return;
+  const next = kids[i + 1];
+  if (next?.type === "paragraph" && text(next).startsWith("📊 정책자금 진행 현황판")) await api(`blocks/${next.id}`, "DELETE");
+  await api(`blocks/${companyPageId}/children`, "PATCH", { after: kids[i].id, children: [{ type: "link_to_page", link_to_page: { type: "page_id", page_id: boardId } }] });
 }
 export async function addRow(dbId, { org, product = "상품 검토 중", stage = "접수 예정", round, month, plan, amount, note }) {
   const props = { 상품: { title: [{ text: { content: product } }] }, 기관: { select: { name: label(org) } }, "진행 단계": { select: { name: stage } } };

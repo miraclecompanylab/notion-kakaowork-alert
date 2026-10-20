@@ -1,5 +1,5 @@
 // 업체 진행 대시보드 → 고객용 정책자금 진행 현황판 자동 관리
-//   진행 여부 = 진행 중 이고 컨택 상태 = 피드백 전달 완료 인데 현황판이 없으면  →  업체 페이지 안에 현황판 생성
+//   진행 여부 = 진행 중 인데 현황판이 없으면  →  업체 페이지 안에 현황판 생성
 //   현황판이 있으면 '진행 기관'에 체크된 기관마다 줄이 있는지 확인  →  없으면 "상품 검토 중 / 접수 예정" 줄 추가
 //   체크가 풀린 기관은 손대지 않은 기본 줄만 지운다 (직원이 적은 내용은 그대로 둔다)
 // 평소에는 최근 20분 안에 수정된 업체만 본다. 옵션: --all (전체 확인), --dry-run (바꿀 대상 수만 출력)
@@ -57,7 +57,7 @@ for (const c of companies) {
   const board = (await paginate(`blocks/${c.id}/children`)).find((b) => b.type === "child_page" && b.child_page.title.includes("현황판"));
 
   if (!board) {
-    if (c.properties["컨택 상태"].status?.name !== "피드백 전달 완료" || !wanted.length) { count.skipped++; continue; }
+    if (!wanted.length) { count.skipped++; continue; }
     const display = c.properties["회사명"].title.map((t) => t.plain_text).join("").trim();
     if (!DRY) await createBoard(c.id, display, wanted.map((org) => ({ org })).reverse());
     count.created++;
