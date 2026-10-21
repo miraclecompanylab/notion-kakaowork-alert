@@ -1,5 +1,5 @@
 // 업체 진행 대시보드 → 고객용 정책자금 진행 현황판 자동 관리
-//   진행 여부 = 진행 중 인데 현황판이 없으면  →  업체 페이지 안에 현황판 생성
+//   진행 여부 = 진행 중 인데 현황판이 없으면  →  업체 페이지 안에 현황판 생성 (계약일이 6개월보다 오래된 예전 업체는 만들지 않는다)
 //   현황판이 있으면 '진행 기관'에 체크된 기관마다 줄이 있는지 확인  →  없으면 "상품 검토 중 / 접수 예정" 줄 추가
 //   체크가 풀린 기관은 손대지 않은 기본 줄만 지운다 (직원이 적은 내용은 그대로 둔다)
 // 평소에는 최근 20분 안에 수정된 업체만 본다. 옵션: --all (전체 확인), --dry-run (바꿀 대상 수만 출력)
@@ -11,6 +11,7 @@ const DASHBOARD_DB = "168180072a5d80caa1a5e2a03afd3fff";
 const DRY = process.argv.includes("--dry-run");
 const ALL = process.argv.includes("--all");
 const DEFAULT_PRODUCT = "상품 검토 중";
+const OLD_CONTRACT = new Date(Date.now() - 183 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 if (!NOTION_TOKEN) {
   console.log("::error::NOTION_TOKEN이 설정되지 않았습니다.");
@@ -51,13 +52,15 @@ const filter = { and: [{ property: "진행 여부", status: { equals: "진행 �
 if (!ALL) filter.and.push({ timestamp: "last_edited_time", last_edited_time: { on_or_after: new Date(Date.now() - 20 * 60 * 1000).toISOString() } });
 const companies = await paginate(`databases/${DASHBOARD_DB}/query`, "POST", { filter });
 
-const count = { created: 0, added: 0, removed: 0, skipped: 0 };
+const count = { created: 0, added: 0, removed: 0, skipped: 0, old: 0 };
 for (const c of companies) {
   const wanted = [...new Set(c.properties["진행 기관"].multi_select.map((o) => FROM_DASH[o.name]).filter(Boolean))];
   const board = (await paginate(`blocks/${c.id}/children`)).find((b) => b.type === "child_page" && b.child_page.title.includes("현황판"));
 
   if (!board) {
     if (!wanted.length) { count.skipped++; continue; }
+    const contract = c.properties["계약일"].date?.start;
+    if (contract && contract < OLD_CONTRACT) { count.old++; continue; }
     const display = c.properties["회사명"].title.map((t) => t.plain_text).join("").trim();
     if (!DRY) await createBoard(c.id, display, wanted.map((org) => ({ org })).reverse());
     count.created++;
@@ -83,4 +86,4 @@ for (const c of companies) {
     }
   }
 }
-console.log(`현황판 확인 ${companies.length}곳${DRY ? " (시험 실행)" : ""} — 새로 만듦 ${count.created}, 기관 줄 추가 ${count.added}, 기본 줄 정리 ${count.removed}, 조건 미달 ${count.skipped}`);
+console.log(`현황판 확인 ${companies.length}곳${DRY ? " (시험 실행)" : ""} — 새로 만듦 ${count.created}, 기관 줄 추가 ${count.added}, 기본 줄 정리 ${count.removed}, 조건 미달 ${count.skipped}, 예전 계약 ${count.old}`);
