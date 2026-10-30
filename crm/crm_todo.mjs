@@ -263,7 +263,7 @@ function digestRules(companies) {
 // ---------- To Do 쓰기 ----------
 function todoProps({ title, code, memo, company, owners }) {
   const props = {
-    이름: { title: rt(title) },
+    Task: { title: rt(title) },
     구분: { select: { name: AUTO_LABEL } },
     "알림 코드": { rich_text: rt(code) },
     "상태 구분": { status: { name: "시작 전" } },
@@ -374,7 +374,7 @@ async function main() {
       continue;
     }
     if (open) {
-      await notion(`pages/${open.id}`, "PATCH", { properties: { 이름: { title: rt(d.title(n)) }, 마감일: { date: { start: TODAY } } } });
+      await notion(`pages/${open.id}`, "PATCH", { properties: { Task: { title: rt(d.title(n)) }, 마감일: { date: { start: TODAY } } } });
       await replaceContent(open.id, blocks);
     } else {
       const pg = await createTodo({ title: d.title(n), code: d.code }, blocks);
