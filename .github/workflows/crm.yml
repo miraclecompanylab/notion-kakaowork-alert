@@ -2,8 +2,8 @@ name: CRM 할 일 자동 생성
 
 on:
   schedule:
-    - cron: "50 23 * * 0-4" # 평일 08:50 KST — 할 일 생성 + 카카오워크 아침 요약
-    - cron: "50 4 * * 1-5" # 평일 13:50 KST — 오전 중 바뀐 상태 반영 (새 할 일 있을 때만 알림)
+    - cron: "50 23 * * 0-4" # 평일 08:50 KST — 할 일 생성
+    - cron: "50 4 * * 1-5" # 평일 13:50 KST — 오전 중 바뀐 상태 반영
   workflow_dispatch: # Actions 탭에서 수동 실행 버튼
 
 concurrency:
@@ -22,6 +22,4 @@ jobs:
       - name: Run CRM rules
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          KAKAOWORK_APP_KEY: ${{ secrets.KAKAOWORK_APP_KEY }}
-          KAKAOWORK_CONVERSATION_IDS: ${{ secrets.KAKAOWORK_CONVERSATION_IDS }}
-        run: node crm/crm_todo.mjs ${{ github.event.schedule == '50 23 * * 0-4' && '--summary' || '' }}
+        run: node crm/crm_todo.mjs --no-kakao # 카카오워크 알림은 끔 (26.10) — 할 일은 노션에서 확인
